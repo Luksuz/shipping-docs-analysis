@@ -47,12 +47,34 @@ const CroatianInvoiceSchema = z.object({
   vatNote: z.string().describe("Napomena o PDV-u")
 })
 
+// CORS headers configuration
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*", // Change this to your specific domain in production
+  "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
+  "Access-Control-Allow-Headers": "Content-Type, Authorization",
+  "Access-Control-Allow-Credentials": "true",
+}
+
+// Handle preflight OPTIONS request
+export async function OPTIONS(request: NextRequest) {
+  return new Response(null, {
+    status: 200,
+    headers: corsHeaders,
+  })
+}
+
 export async function POST(request: NextRequest) {
   try {
     // Check if OpenAI API key is configured
     const OPENAI_API_KEY = process.env.OPENAI_API_KEY
     if (!OPENAI_API_KEY) {
-      return NextResponse.json({ error: "OpenAI API key is not configured" }, { status: 500 })
+      return NextResponse.json(
+        { error: "OpenAI API key is not configured" }, 
+        { 
+          status: 500,
+          headers: corsHeaders,
+        }
+      )
     }
 
     // Get JSON data from the request
@@ -60,7 +82,13 @@ export async function POST(request: NextRequest) {
     const { text } = body
 
     if (!text || typeof text !== 'string') {
-      return NextResponse.json({ error: "No text input provided" }, { status: 400 })
+      return NextResponse.json(
+        { error: "No text input provided" }, 
+        { 
+          status: 400,
+          headers: corsHeaders,
+        }
+      )
     }
 
     // Initialize the LLM with structured output
@@ -91,12 +119,17 @@ export async function POST(request: NextRequest) {
     // Process the text with LangChain
     const response = await llm.invoke([message])
 
-    // Return the extracted data
-    return NextResponse.json({
-      success: true,
-      data: response,
-      extractedAt: new Date().toISOString(),
-    })
+    // Return the extracted data with CORS headers
+    return NextResponse.json(
+      {
+        success: true,
+        data: response,
+        extractedAt: new Date().toISOString(),
+      },
+      {
+        headers: corsHeaders,
+      }
+    )
   } catch (error) {
     console.error("Error processing text:", error)
 
@@ -105,7 +138,10 @@ export async function POST(request: NextRequest) {
         success: false,
         error: error instanceof Error ? error.message : "An unknown error occurred" 
       },
-      { status: 500 },
+      { 
+        status: 500,
+        headers: corsHeaders,
+      },
     )
   }
 } 
